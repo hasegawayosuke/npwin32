@@ -1,0 +1,24 @@
+<html>
+<head>
+<script>
+function foo()
+{
+	try{
+		var plugin = document.getElementById("p");
+		var MessageBox = plugin.import( "user32.dll", "MessageBoxW", "NWWN", "N" );
+		if( MessageBox ){
+			MessageBox.call( 0, "aa", "bb", 0 );
+		}
+	}
+	catch(e ){
+		alert( e );
+	}
+}
+
+</script>
+</head>
+<body>
+	<embed type="application/x-win32api-dynamic-call" id="p" hidden="true" />
+</body>
+</html>
+

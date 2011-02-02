@@ -1,0 +1,27 @@
+<html>
+<head>
+<style>
+li{ white-space: nowrap }
+</style>
+<script type="text/javascript">
+var bg;
+
+bg = chrome.extension.getBackgroundPage();
+
+function MessageBoxClick()
+{
+	bg.foo();
+}
+
+function init()
+{
+	document.getElementById("MessageBox").addEventListener( 'click', MessageBoxClick );
+}
+
+</script>
+</head>
+<body onload="javascript:init()">
+<ul>
+<li id="MessageBox">call MessageBox api</li>
+</ul>
+</body></html>
