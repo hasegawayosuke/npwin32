@@ -38,4 +38,6 @@ clean :
 	@for %%a in ( $(OBJ) ) do @if exist %%~na.exp del %%~na.exp
 	@for %%a in ( $(OBJ) ) do @if exist %%~na.lib del %%~na.lib
 
+install :
+	copy $(TARGET).dll sample\\$(TARGET).dll
 
