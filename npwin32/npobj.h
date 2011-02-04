@@ -30,6 +30,8 @@ protected:
 };
 
 
+#pragma warning( push )
+#pragma warning( disable : 4100 )
 inline void LOG( LPCSTR lpszFormat, ... )
 {
 #ifdef DEBUG
@@ -41,7 +43,10 @@ inline void LOG( LPCSTR lpszFormat, ... )
     OutputDebugStringA( buf );
 #endif
 }
+#pragma warning( pop )
 
+#pragma warning( push )
+#pragma warning( disable : 4100 )
 inline void LOG( LPCWSTR lpszFormat, ... )
 {
 #ifdef DEBUG
@@ -53,6 +58,7 @@ inline void LOG( LPCWSTR lpszFormat, ... )
     OutputDebugStringW( buf );
 #endif
 }
+#pragma warning( pop )
 
 #ifdef DEBUG
 class _DEBUG_FUNC_INFO{

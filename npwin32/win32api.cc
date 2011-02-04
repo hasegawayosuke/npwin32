@@ -82,25 +82,42 @@ public:
     {
         return _vWstr;
     }
-};
+    void ToNPVariant( NPVariant *variant )
+    {
+        switch( _vt ){
+        case MVT_EMPTY:
+            VOID_TO_NPVARIANT( *variant );
+            break;
+        case MVT_INT32:
+            INT32_TO_NPVARIANT( _vInt, *variant );
+            break;
+        case MVT_ASTR:
+            {
+                // convert to UTF-16
+                DWORD w = MultiByteToWideChar( CP_ACP, 0, _vAstr, -1, NULL, 0 );
+                LPWSTR sw = new WCHAR[ w + 1 ];
+                MultiByteToWideChar( CP_ACP, 0, _vAstr, -1, sw, w + 1 );
 
-/*
-typedef enum MY_VARIANT_TYPE{
-    MVT_INT32,  // INT
-    MVT_ASTR,   // LPSTR
-    MVT_WSTR,   // LPWSTR
-    MVT_BOOL,   // BOOL
+                // convert to UTF-8
+                w = WideCharToMultiByte( CP_UTF8, 0, sw, -1, NULL, 0, 0, 0 );
+                NPUTF8 *sa = (NPUTF8 *)(npnfuncs->memalloc( w + 1 ));
+                WideCharToMultiByte( CP_UTF8, 0, sw, -1, sa, w + 1, 0, 0 );
+                delete sw;
+                STRINGZ_TO_NPVARIANT( sa, *variant );
+            }
+            break;
+        case MVT_WSTR:
+            {
+                // convert to UTF-8
+                DWORD w = WideCharToMultiByte( CP_UTF8, 0, _vWstr, -1, NULL, 0, 0, 0 );
+                NPUTF8 *sa = (NPUTF8 *)(npnfuncs->memalloc( w + 1 ));
+                WideCharToMultiByte( CP_UTF8, 0, _vWstr, -1, sa, w + 1, 0, 0 );
+                STRINGZ_TO_NPVARIANT( sa, *variant );
+            }
+            break;
+        }
+    }
 };
-typedef struct __my_variant{
-    MY_VARIANT_TYPE vt;
-    union{
-        int vInt;
-        LPSTR vAstr;
-        LPWSTR vWstr;
-        BOOL vBool;
-    };
-} MY_VARIANT, *LPMY_VARIANT;
-*/
 
 class win32api : public NPObj {
 private:
@@ -128,6 +145,7 @@ public:
     bool hasMethod( LPCWSTR methodName );
     bool invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCount, NPVariant *result);
     bool call( const NPVariant *args, DWORD argCount, NPVariant *result, LPCSTR* pszErrMsg );
+    bool arg( const NPVariant *args, DWORD argCount, NPVariant *result, LPCSTR* pszErrMsg );
 };
 
 static LPCSTR W32E_CANNOT_LOAD_DLL = "cannot load dll";
@@ -173,7 +191,6 @@ bool win32api::invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCo
             npnfuncs->setexception( getNPObject(), e );
             return false;
         }
-//      obj = static_cast<NPObject*>(pfunc);
         obj = pfunc->getNPObject();
         OBJECT_TO_NPVARIANT( obj, *result );
         return true;
@@ -289,13 +306,23 @@ bool dllfunc::invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCou
             }
             npnfuncs->setexception( getNPObject(), e );
         }
+    }else if( lstrcmpW( methodName, L"arg" ) == 0 ){
+        r = arg( args, argCount, result, &e );
+        if( !r ){
+            if( !e ){
+                e = W32E_INVALID_ARGUMENT;
+            }
+            npnfuncs->setexception( getNPObject(), e );
+        }
     }
     return r;
 }
 
-#ifdef DEBUG
-void DUMP( LPBYTE p, DWORD len )
+#pragma warning( push )
+#pragma warning( disable : 4100 )
+inline void DUMP( LPBYTE p, DWORD len )
 {
+#ifdef DEBUG
     LPTSTR buf, s;
     buf = new CHAR[ len * 3 + 1 ];
     s = buf;
@@ -308,17 +335,21 @@ void DUMP( LPBYTE p, DWORD len )
     }
     LOG( buf );
     delete buf;
-}
 #endif
+}
+#pragma warning( pop )
 
 bool dllfunc::call( const NPVariant *args, DWORD argCount, NPVariant *result, LPCSTR* pszErrMsg )
 {
-    DWORD n, i, dwSize;
+    int i;
+    DWORD n, dwSize;
     LPBYTE p0 = NULL, p;
     bool Result = false;
     typedef void (WINAPI *voidproc)(void);
 
     LOGF;
+    LOG( L" %s", _dll );
+    LOG( " %s", _func );
 
     *pszErrMsg = NULL;
 
@@ -334,25 +365,28 @@ bool dllfunc::call( const NPVariant *args, DWORD argCount, NPVariant *result, LP
         *pszErrMsg = W32E_CANNOT_ALLOCATE_MEM;
         return false;
     }
-    LOG( "n=%d size=%d", n, dwSize );
     __try{
         DWORD dw;
         LPSTR sa;
         LPWSTR sw;
         voidproc pf;
 
-        for( i = 0; i < n; i++ ){
+#ifdef JITDEBUG
+        *p++ = 0xcc;
+#endif
+        for( i = n - 1; i >= 0; i-- ){
             *p++ = 0x68;
-            LOG( L"%d : %c", i, _argType[ i ] );
             switch( _argType[ i ] ){
             case 'N': // 32bit number
                 dw = static_cast<DWORD>( Npv2Int( args[ i ] ) );
+                LOG( L"%d : %c : %lu", i, _argType[ i ], dw );
                 _argBuffer[ i ] = dw;
                 *((LPDWORD)p) = dw;
                 p += sizeof( DWORD );
                 break;
             case 'A' : // LPSTR
                 sa = Npv2Str( args[ i ] );
+                LOG( L"%d : %c ", i, _argType[ i ] );
                 _argBuffer[ i ] = sa;
                 *((LPDWORD)p) = (DWORD)(LPSTR)( _argBuffer[ i ] );
                 delete sa;
@@ -361,6 +395,7 @@ bool dllfunc::call( const NPVariant *args, DWORD argCount, NPVariant *result, LP
             case 'W' : // LPWSTR
                 sw = Npv2WStr( args[ i ] );
                 _argBuffer[ i ] = sw;
+                LOG( L"%d : %c : %s", i, _argType[ i ], sw );
                 *((LPDWORD)p) = (DWORD)(LPWSTR)( _argBuffer[ i ] );
                 delete sw;
                 p += (int)(sizeof( LPWSTR ));
@@ -378,9 +413,24 @@ bool dllfunc::call( const NPVariant *args, DWORD argCount, NPVariant *result, LP
         *p++ = 0xc3; 
 
         pf = (voidproc)p0;
+        DUMP( p0, dwSize );
+        LOG( "calling api" );
+#ifdef JITDEBUG
+        {
+            CHAR buf[ 1024 ];
+            int n = 0;
+            StringCchPrintfA( buf, _countof( buf ), "vsjitdebugger.exe -p %d", GetCurrentProcessId() );
+            WinExec( buf, SW_SHOW );
+            while( IsDebuggerPresent() == 0 && n < 50){
+                Sleep( 100 );
+                n++;
+            }
+        }
+#endif
         pf();
+        LOG( "called" );
 
-        // TODO
+        // TODO return value
         if( _resultType == L'N' ){
 
         }
@@ -390,6 +440,33 @@ bool dllfunc::call( const NPVariant *args, DWORD argCount, NPVariant *result, LP
         VirtualFree( p0, 0, MEM_DECOMMIT | MEM_RELEASE );
     }
     return Result;
+}
+
+bool dllfunc::arg( const NPVariant *args, DWORD argCount, NPVariant *result, LPCSTR* pszErrMsg )
+{
+    LOGF;
+    unsigned int i;
+    if( argCount != 1 ){
+        *pszErrMsg = W32E_INVALID_ARGUMENT;
+        return false;
+    }
+    i = Npv2Int( args[ 0 ] );
+    if( i < 0 || _argBuffer.GetCount() <= i ){
+        LOG( "invalid argument" );
+        *pszErrMsg = W32E_INVALID_ARGUMENT;
+        return false;
+    }
+
+    LOG( "index=%d", i );
+    _argBuffer[ i ].ToNPVariant( result );
+    {
+        LPSTR s = Npv2Str( *result );
+        LOG("%s", s );
+        delete s;
+    }
+    return true;
+
+
 }
 
 static win32api *_plugin;
@@ -403,6 +480,7 @@ extern "C" {
 NPError OSCALL NP_GetEntryPoints( NPPluginFuncs *pluginFuncs )
 {
     LOGF;
+    LOG( L"PID=%lu", GetCurrentProcessId() );
     pluginFuncs->version = (NP_VERSION_MAJOR << 8) | NP_VERSION_MINOR;
     pluginFuncs->size = sizeof( pluginFuncs );
     pluginFuncs->newp = NPP_New;
