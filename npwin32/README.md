@@ -3,8 +3,8 @@ NPAPI DLL for calling DLL functions inside JavaScript.
 
 Sample
 ------
-	&lt;embed type=&quot;application/x-win32api-dynamic-call&quot; id=&quot;p&quot; hidden=&quot;true&quot; /&gt;
-	&lt;script&gt;
+	<embed type="application/x-win32api-dynamic-call" id="p" hidden="true" />
+	<script>
 	function foo(){
 	    try{
 	        var plugin = document.getElementById( "p" ); // get plugin instance
@@ -21,7 +21,7 @@ Sample
 	        alert( e );
 	    }
 	}
-	&lt;/script&gt;
+	</script>
     
 
 License
