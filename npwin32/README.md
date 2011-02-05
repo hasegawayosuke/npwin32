@@ -4,7 +4,7 @@ NPAPI DLL for calling DLL functions inside JavaScript.
 Sample
 ------
 	<embed type="application/x-win32api-dynamic-call" id="p" hidden="true" />
-	<script>
+	<script type="text/javascript">
 	function foo(){
 	    try{
 	        var plugin = document.getElementById( "p" ); // get plugin instance
@@ -14,7 +14,7 @@ Sample
 
 	        if( GetWindowsDirectory && MessageBox ){
 	            GetWindowsDirectory.call( buf, buf.length );
-	            MessageBox.cal( 0, "Windows directory is '" + GetWindowsDirectory.arg(0) + "'", "Chrome", 0 );
+	            MessageBox.call( 0, "Windows directory is '" + GetWindowsDirectory.arg(0) + "'", "Chrome", 0 );
 	        }
 	    }
 	    catch( e ){
