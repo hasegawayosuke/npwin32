@@ -13,6 +13,10 @@ function foo()
 			GetWindowsDirectory.call( buf, buf.length );
 			MessageBox.call( 0, "Windows directory is '" + GetWindowsDirectory.arg(0) + "'", "Chrome", 0 );
 		}
+
+		var CharNext = plugin.import( "user32.dll", "CharNextW", "W", "W" );
+		var s = CharNext.call( "abcd" );
+		alert( s );
 	}
 	catch(e ){
 		alert( e );

@@ -256,3 +256,26 @@ int Npv2Int( NPVariant v )
     return 0;
 }
 
+NPUTF8* allocUtf8( LPCSTR s )
+{
+    // convert to UTF-16
+    DWORD w = MultiByteToWideChar( CP_ACP, 0, s, -1, NULL, 0 );
+    LPWSTR sw = new WCHAR[ w + 1 ];
+    MultiByteToWideChar( CP_ACP, 0, s, -1, sw, w + 1 );
+
+    // convert to UTF-8
+    w = WideCharToMultiByte( CP_UTF8, 0, sw, -1, NULL, 0, 0, 0 );
+    NPUTF8 *sa = (NPUTF8 *)(npnfuncs->memalloc( w + 1 ));
+    WideCharToMultiByte( CP_UTF8, 0, sw, -1, sa, w + 1, 0, 0 );
+    delete sw;
+    return sa;
+}
+
+NPUTF8* allocUtf8( LPCWSTR s )
+{
+    // convert to UTF-8
+    DWORD w = WideCharToMultiByte( CP_UTF8, 0, s, -1, NULL, 0, 0, 0 );
+    NPUTF8 *sa = (NPUTF8 *)(npnfuncs->memalloc( w + 1 ));
+    WideCharToMultiByte( CP_UTF8, 0, s, -1, sa, w + 1, 0, 0 );
+    return sa;
+}

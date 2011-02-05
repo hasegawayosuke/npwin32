@@ -35,7 +35,7 @@ public:
         _vt = MVT_EMPTY;
 
     };
-    MyVariant()
+    MyVariant() 
     {
         LOGF;
         _vt = MVT_EMPTY;
@@ -92,27 +92,19 @@ public:
             INT32_TO_NPVARIANT( _vInt, *variant );
             break;
         case MVT_ASTR:
-            {
-                // convert to UTF-16
-                DWORD w = MultiByteToWideChar( CP_ACP, 0, _vAstr, -1, NULL, 0 );
-                LPWSTR sw = new WCHAR[ w + 1 ];
-                MultiByteToWideChar( CP_ACP, 0, _vAstr, -1, sw, w + 1 );
-
-                // convert to UTF-8
-                w = WideCharToMultiByte( CP_UTF8, 0, sw, -1, NULL, 0, 0, 0 );
-                NPUTF8 *sa = (NPUTF8 *)(npnfuncs->memalloc( w + 1 ));
-                WideCharToMultiByte( CP_UTF8, 0, sw, -1, sa, w + 1, 0, 0 );
-                delete sw;
-                STRINGZ_TO_NPVARIANT( sa, *variant );
+            if( _vAstr == NULL ){
+                NULL_TO_NPVARIANT( *variant );
+            }else{
+                NPUTF8 *s = allocUtf8( _vAstr );
+                STRINGZ_TO_NPVARIANT( s, *variant );
             }
             break;
         case MVT_WSTR:
-            {
-                // convert to UTF-8
-                DWORD w = WideCharToMultiByte( CP_UTF8, 0, _vWstr, -1, NULL, 0, 0, 0 );
-                NPUTF8 *sa = (NPUTF8 *)(npnfuncs->memalloc( w + 1 ));
-                WideCharToMultiByte( CP_UTF8, 0, _vWstr, -1, sa, w + 1, 0, 0 );
-                STRINGZ_TO_NPVARIANT( sa, *variant );
+            if( _vWstr == NULL ){
+                NULL_TO_NPVARIANT( *variant );
+            }else{
+                NPUTF8 *s = allocUtf8( _vWstr );
+                STRINGZ_TO_NPVARIANT( s, *variant );
             }
             break;
         }
@@ -182,11 +174,9 @@ bool win32api::invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCo
 
     if( lstrcmpW( methodName, L"import" ) == 0 ){
         dllfunc* pfunc = NULL;
-        e = checkNpArgs( "SSSS", args, argCount );
-        if( !e ){
-            pfunc = import( args, &e );
-        }
+        pfunc = import( args, &e );
         if( !pfunc ){
+            LOG( "pfunc=NULL" );
             if( !e ) e = "";
             npnfuncs->setexception( getNPObject(), e );
             return false;
@@ -226,6 +216,7 @@ dllfunc* win32api::import( const NPVariant *args, LPCSTR* pszErrMsg )
         }
         pProc = GetProcAddress( h, szFunc );
         if( pProc == NULL ){
+            LOG( "cannot find %s", szFunc );
             *pszErrMsg = W32E_CANNOT_GET_ADDR;
             __leave;
         }
@@ -346,6 +337,7 @@ bool dllfunc::call( const NPVariant *args, DWORD argCount, NPVariant *result, LP
     LPBYTE p0 = NULL, p;
     bool Result = false;
     typedef void (WINAPI *voidproc)(void);
+    typedef DWORD (WINAPI *dwproc)(void);
 
     LOGF;
     LOG( L" %s", _dll );
@@ -360,7 +352,7 @@ bool dllfunc::call( const NPVariant *args, DWORD argCount, NPVariant *result, LP
     }
 
     dwSize = n * 5 + 10;
-    p0 = p = (LPBYTE)VirtualAlloc( NULL, dwSize, MEM_COMMIT, PAGE_EXECUTE_READWRITE );
+    p0 = p = reinterpret_cast<LPBYTE>(VirtualAlloc( NULL, dwSize, MEM_COMMIT, PAGE_EXECUTE_READWRITE ) );
     if( p0 == NULL ){
         *pszErrMsg = W32E_CANNOT_ALLOCATE_MEM;
         return false;
@@ -369,7 +361,10 @@ bool dllfunc::call( const NPVariant *args, DWORD argCount, NPVariant *result, LP
         DWORD dw;
         LPSTR sa;
         LPWSTR sw;
-        voidproc pf;
+        //voidproc pf;
+        dwproc pf;
+        DWORD r;
+
 
 #ifdef JITDEBUG
         *p++ = 0xcc;
@@ -412,7 +407,7 @@ bool dllfunc::call( const NPVariant *args, DWORD argCount, NPVariant *result, LP
         // ret
         *p++ = 0xc3; 
 
-        pf = (voidproc)p0;
+        pf = reinterpret_cast<dwproc>(p0);
         DUMP( p0, dwSize );
         LOG( "calling api" );
 #ifdef JITDEBUG
@@ -427,13 +422,43 @@ bool dllfunc::call( const NPVariant *args, DWORD argCount, NPVariant *result, LP
             }
         }
 #endif
-        pf();
+        r = pf();
         LOG( "called" );
 
-        // TODO return value
-        if( _resultType == L'N' ){
-
+        // set api result to *result
+        switch( _resultType ){
+        case L'N': // 32bit
+            INT32_TO_NPVARIANT( r, *result );
+            break;
+        case L'I': // 16bit
+            r &= 0xffff;
+            INT32_TO_NPVARIANT( r, *result );
+            break;
+        case L'C': // 8bit
+            r &= 0xff;
+            INT32_TO_NPVARIANT( r, *result );
+            break;
+        case L'A': // LPSTR
+            if( r == 0 ){
+                NULL_TO_NPVARIANT( *result );
+            }else{
+                NPUTF8 *s = allocUtf8( reinterpret_cast<LPCSTR>(r) );
+                STRINGZ_TO_NPVARIANT( s, *result );
+            }
+            break;
+        case L'W': // LPWSTR
+            if( r == 0 ){
+                NULL_TO_NPVARIANT( *result );
+            }else{
+                NPUTF8 *s = allocUtf8( reinterpret_cast<LPCWSTR>(r) );
+                STRINGZ_TO_NPVARIANT( s, *result );
+            }
+            break;
+        default:
+            VOID_TO_NPVARIANT( *result );
+            break;
         }
+
         Result = true;
     }
     __finally{

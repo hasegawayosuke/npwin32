@@ -87,3 +87,5 @@ LPWSTR Npv2WStr( NPVariant v );
 LPSTR Npv2Str( NPVariant v );
 int Npv2Int( NPVariant v );
 
+NPUTF8* allocUtf8( LPCSTR s );
+NPUTF8* allocUtf8( LPCWSTR s );
