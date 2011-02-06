@@ -119,7 +119,7 @@ public:
     ~win32api();
     bool hasMethod( LPCWSTR methodName );
     bool invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCount, NPVariant *result);
-    dllfunc* import( const NPVariant *args, LPCSTR* pszErrMsg );
+    bool import( const NPVariant *args, DWORD argCount, NPVariant *result, LPCSTR* pszErrMsg );
 };
 
 class dllfunc : public NPObj {
@@ -170,35 +170,37 @@ bool win32api::invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCo
     LOGF;
     LOG( L"methodName=%s", methodName );
     LPCSTR e;
-    NPObject *obj;
+    bool r = false;
 
     if( lstrcmpW( methodName, L"import" ) == 0 ){
-        dllfunc* pfunc = NULL;
-        pfunc = import( args, &e );
-        if( !pfunc ){
-            LOG( "pfunc=NULL" );
-            if( !e ) e = "";
+        r = import( args, argCount, result, &e );
+        if( !r ){
+            if( !e ){
+                e = W32E_INVALID_ARGUMENT;
+            }
             npnfuncs->setexception( getNPObject(), e );
-            return false;
         }
-        obj = pfunc->getNPObject();
-        OBJECT_TO_NPVARIANT( obj, *result );
-        return true;
+    }else if( lstrcmpW( methodName, L"toString" ) == 0 ){
+        r = toString( result );
     }
-    return false;
+    return r;
 }
 
-dllfunc* win32api::import( const NPVariant *args, LPCSTR* pszErrMsg )
+bool win32api::import( const NPVariant *args, DWORD argCount, NPVariant *result, LPCSTR* pszErrMsg )
 {
     LPCWSTR szDLL = NULL, szArgs = NULL, szResult = NULL;
     LPCSTR szFunc = NULL;
     HMODULE h;
     LPVOID pProc;
     dllfunc *pfunc = NULL;
+    bool r = false;
 
     LOGF;
+    *pszErrMsg = checkNpArgs( "SSSS", args, argCount );
+    if( *pszErrMsg ) LOG( "err=%s", *pszErrMsg );
+    if( *pszErrMsg ) return false;
+
     __try{
-        pszErrMsg = NULL;
         szDLL = Npv2WStr( args[ 0 ] );
         szFunc = Npv2Str( args[ 1 ] );
         szArgs = Npv2WStr( args[ 2 ] );
@@ -209,6 +211,7 @@ dllfunc* win32api::import( const NPVariant *args, LPCSTR* pszErrMsg )
             LOG( L"Loading DLL:%s", szDLL );
             h = LoadLibraryW( szDLL );
             if( h == NULL ){
+                LOG( "cannot load dll" );
                 *pszErrMsg = W32E_CANNOT_LOAD_DLL;
                 __leave;
             }
@@ -223,6 +226,8 @@ dllfunc* win32api::import( const NPVariant *args, LPCSTR* pszErrMsg )
         // TODO: check arg type and result type
         pfunc = new dllfunc( getNPP(), pProc );
         pfunc->setNames( szDLL, szFunc, szArgs, *szResult );
+        OBJECT_TO_NPVARIANT( pfunc->getNPObject(), *result );
+        r = true;
     }
     __finally{
         delete szDLL;
@@ -230,7 +235,7 @@ dllfunc* win32api::import( const NPVariant *args, LPCSTR* pszErrMsg )
         delete szArgs;
         delete szResult;
     }
-    return pfunc;
+    return true;
 
 }
 
@@ -305,6 +310,8 @@ bool dllfunc::invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCou
             }
             npnfuncs->setexception( getNPObject(), e );
         }
+    }else if( lstrcmpW( methodName, L"toString" ) == 0 ){
+        r = toString( result );
     }
     return r;
 }
@@ -484,11 +491,6 @@ bool dllfunc::arg( const NPVariant *args, DWORD argCount, NPVariant *result, LPC
 
     LOG( "index=%d", i );
     _argBuffer[ i ].ToNPVariant( result );
-    {
-        LPSTR s = Npv2Str( *result );
-        LOG("%s", s );
-        delete s;
-    }
     return true;
 
 

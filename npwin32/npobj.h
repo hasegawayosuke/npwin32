@@ -24,6 +24,7 @@ public:
     static struct NPClass _npo_class;
     virtual bool hasMethod( LPCWSTR methodName );
     virtual bool invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCount, NPVariant *result);
+    virtual bool toString( NPVariant *result );
 protected:
     NPObject* _npobject;
     NPP _npp;

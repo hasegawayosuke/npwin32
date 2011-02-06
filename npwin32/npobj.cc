@@ -138,6 +138,17 @@ bool NPObj::invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCount
 }
 #pragma warning( pop )
 
+bool NPObj::toString( NPVariant *result )
+{
+    LOGF;
+    const char s[] = "[object npwin32obj]";
+    NPUTF8* p = reinterpret_cast<NPUTF8*>( npnfuncs->memalloc( sizeof( s ) ) );
+
+    RtlCopyMemory( p, s, sizeof( s ) );
+    STRINGN_TO_NPVARIANT( p, sizeof( s ), *result );
+    return true;
+}
+
 CAtlMap<NPObject*, NPObj*> NPObj::_map;
 
 LPCSTR NPOE_MISSING_ARGUMENT = "missing argument"; 
