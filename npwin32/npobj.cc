@@ -267,6 +267,22 @@ int Npv2Int( NPVariant v )
     return 0;
 }
 
+BOOL Npv2Bool( NPVariant v )
+{
+	if( NPVARIANT_IS_NULL( v ) ){
+		return FALSE;
+	}else if( NPVARIANT_IS_INT32( v ) ){
+		return NPVARIANT_TO_INT32( v ) ? TRUE : FALSE;
+	}else if( NPVARIANT_IS_STRING( v ) ){
+        NPString str = NPVARIANT_TO_STRING( v );
+		return str.UTF8Length ? TRUE : FALSE;
+	}else if( NPVARIANT_IS_VOID( v ) ){
+		return FALSE;
+	}else{
+		return TRUE;
+	}
+}
+
 NPUTF8* allocUtf8( LPCSTR s )
 {
     // convert to UTF-16

@@ -69,7 +69,7 @@ public:
     _DEBUG_FUNC_INFO( const char*funcname, int line )
     {
         p = funcname;
-        LOG( "*Enter to %s (%d)", p, line );
+        LOG( "*Enter to %s (line:%d pid:%d tid:%d)", p, line, GetCurrentProcessId(), GetCurrentThreadId() );
     };
     ~_DEBUG_FUNC_INFO()
     {
@@ -77,7 +77,7 @@ public:
     };
 };
 
-//#d efine LOGF        LOG( "Enter %s (%d)", __FUNCTION__, __LINE__ )
+//#d efine LOGF        LOG( "Enter %s (pid=%d tid=%d line=%d)", __FUNCTION__, GetCurrentProcessId(), GetCurrentThreadId(), __LINE__ )
 #define LOGF    _DEBUG_FUNC_INFO    _debug_func_info( __FUNCTION__, __LINE__ )
 #else
 #define LOGF
@@ -87,6 +87,7 @@ LPCSTR checkNpArgs( LPCSTR lpszCheck, const NPVariant *args, uint32_t argCount )
 LPWSTR Npv2WStr( NPVariant v );
 LPSTR Npv2Str( NPVariant v );
 int Npv2Int( NPVariant v );
+BOOL Npv2Bool( NPVariant v );
 
 NPUTF8* allocUtf8( LPCSTR s );
 NPUTF8* allocUtf8( LPCWSTR s );

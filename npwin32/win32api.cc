@@ -28,6 +28,10 @@ private:
         LPWSTR _vWstr;
     };
 public:
+	MY_VARIANT_TYPE type( void )
+	{
+		return _vt;
+	};
     void Clear( void )
     {
         if( _vt == MVT_ASTR ) delete _vAstr; else
@@ -82,6 +86,11 @@ public:
     {
         return _vWstr;
     }
+	operator LPDWORD()
+	{
+		return reinterpret_cast<LPDWORD>( &_vInt );
+
+	}
     void ToNPVariant( NPVariant *variant )
     {
         switch( _vt ){
@@ -402,6 +411,20 @@ bool dllfunc::call( const NPVariant *args, DWORD argCount, NPVariant *result, LP
                 delete sw;
                 p += (int)(sizeof( LPWSTR ));
                 break;
+			case 'B' : // 32bit bool
+				dw = static_cast<DWORD>( Npv2Bool( args[ i ] ) );
+				_argBuffer[ i ] = static_cast<DWORD>( dw );
+                *((LPDWORD)p) = dw;
+                p += sizeof( DWORD );
+                break;
+			case 'P' : // pointer
+				if( NPVARIANT_IS_INT32( args[ i ] ) ){
+					dw = static_cast<DWORD>( Npv2Int( args[ i ] ) );
+					_argBuffer[ i ] = dw;
+					*((LPDWORD)p) = reinterpret_cast<DWORD>(static_cast<LPDWORD>( _argBuffer[ i ] ));
+					p += sizeof( LPDWORD );
+				}
+				break;
             }
         }
         // mov eax, func
@@ -430,10 +453,13 @@ bool dllfunc::call( const NPVariant *args, DWORD argCount, NPVariant *result, LP
         }
 #endif
         r = pf();
-        LOG( "called" );
+        LOG( "called:%lu", r );
 
         // set api result to *result
         switch( _resultType ){
+		case L'B': // 32bit bool
+			BOOLEAN_TO_NPVARIANT( r, *result );
+			break;
         case L'N': // 32bit
             INT32_TO_NPVARIANT( r, *result );
             break;
@@ -489,7 +515,7 @@ bool dllfunc::arg( const NPVariant *args, DWORD argCount, NPVariant *result, LPC
         return false;
     }
 
-    LOG( "index=%d", i );
+    LOG( "index=%d type=%d", i, _argBuffer[ i ].type() );
     _argBuffer[ i ].ToNPVariant( result );
     return true;
 
