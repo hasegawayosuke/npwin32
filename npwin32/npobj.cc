@@ -17,7 +17,7 @@ struct NPClass NPObj::_npo_class = {
     NULL,
     _hasMethod,
     _invoke,
-    NULL,
+	_invokeDefault,
     NULL,
     NULL,
     NULL,
@@ -73,22 +73,31 @@ bool NPObj::_invoke( NPObject *obj, NPIdentifier methodName,
     DWORD w;
     LPWSTR s;
     NPObj* npobj;
-    NPUTF8 *name = npnfuncs->utf8fromidentifier( methodName );
+    NPUTF8 *name;
 
     LOGF;
     if( !NPObj::_map.Lookup( obj, npobj ) ){
         return false;
     }
-    w = MultiByteToWideChar( CP_UTF8, 0, name, -1, NULL, 0 );
-    s = new WCHAR[ w + 1 ];
-    MultiByteToWideChar( CP_UTF8, 0, name, -1, s, w );
-    LOG( L"methodName=%s", s );
-    r = npobj->invoke( s, args, argCount, result );
-    delete s;
-    npnfuncs->memfree( name );
+	if( methodName != NULL ){
+		name = npnfuncs->utf8fromidentifier( methodName );
+		w = MultiByteToWideChar( CP_UTF8, 0, name, -1, NULL, 0 );
+		s = new WCHAR[ w + 1 ];
+		MultiByteToWideChar( CP_UTF8, 0, name, -1, s, w );
+		LOG( L"methodName=%s", s );
+		r = npobj->invoke( s, args, argCount, result );
+		delete s;
+		npnfuncs->memfree( name );
+	}else{
+		r = npobj->invokeDefault( args, argCount, result );
+	}
     return r;
 }
 
+bool NPObj::_invokeDefault( NPObject *obj, const NPVariant *args, uint32_t argCount, NPVariant *result) 
+{
+	return _invoke( obj, NULL, args, argCount, result );
+}
 /* 
 NPObject* NPObj::_allocate( NPP npp, NPClass *aClass )
 {
@@ -132,6 +141,15 @@ bool NPObj::hasMethod( LPCWSTR methodName )
 #pragma warning( push )
 #pragma warning( disable : 4100 )
 bool NPObj::invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCount, NPVariant *result) 
+{
+    LOGF;
+    return false;
+}
+#pragma warning( pop )
+
+#pragma warning( push )
+#pragma warning( disable : 4100 )
+bool NPObj::invokeDefault( const NPVariant *args, uint32_t argCount, NPVariant *result) 
 {
     LOGF;
     return false;

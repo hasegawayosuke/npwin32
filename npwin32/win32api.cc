@@ -129,6 +129,7 @@ public:
     bool hasMethod( LPCWSTR methodName );
     bool invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCount, NPVariant *result);
     bool import( const NPVariant *args, DWORD argCount, NPVariant *result, LPCSTR* pszErrMsg );
+    bool callback( const NPVariant *args, DWORD argCount, NPVariant *result, LPCSTR* pszErrMsg );
 };
 
 class dllfunc : public NPObj {
@@ -145,9 +146,23 @@ public:
     bool setNames( LPCWSTR, LPCSTR, LPCWSTR, WCHAR );
     bool hasMethod( LPCWSTR methodName );
     bool invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCount, NPVariant *result);
+	bool invokeDefault( const NPVariant *args, uint32_t argCount, NPVariant *result );
     bool call( const NPVariant *args, DWORD argCount, NPVariant *result, LPCSTR* pszErrMsg );
     bool arg( const NPVariant *args, DWORD argCount, NPVariant *result, LPCSTR* pszErrMsg );
 };
+
+class dllcbk : public NPObj {
+private:
+	NPObject *_jsfunc;
+	LPWSTR _argType;
+	WCHAR _resultType;
+	BYTE _code[ 32 ];
+public:
+	dllcbk( NPP );
+	~dllcbk();
+	bool setArgs( NPObject*, LPCWSTR, WCHAR );
+};
+
 
 static LPCSTR W32E_CANNOT_LOAD_DLL = "cannot load dll";
 static LPCSTR W32E_CANNOT_GET_ADDR = "cannot get proc addr";
@@ -183,6 +198,14 @@ bool win32api::invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCo
 
     if( lstrcmpW( methodName, L"import" ) == 0 ){
         r = import( args, argCount, result, &e );
+        if( !r ){
+            if( !e ){
+                e = W32E_INVALID_ARGUMENT;
+            }
+            npnfuncs->setexception( getNPObject(), e );
+        }
+	}else if( lstrcmpW( methodName, L"callback" ) == 0 ){
+        r = callback( args, argCount, result, &e );
         if( !r ){
             if( !e ){
                 e = W32E_INVALID_ARGUMENT;
@@ -244,7 +267,34 @@ bool win32api::import( const NPVariant *args, DWORD argCount, NPVariant *result,
         delete szArgs;
         delete szResult;
     }
-    return true;
+    return r;
+
+}
+
+bool win32api::callback( const NPVariant *args, DWORD argCount, NPVariant *result, LPCSTR* pszErrMsg )
+{
+    LPCWSTR szArgs = NULL, szResult = NULL;
+    bool r = false;
+	dllcbk *cbk;
+
+    LOGF;
+    *pszErrMsg = checkNpArgs( "OSS", args, argCount );
+    if( *pszErrMsg ) LOG( "err=%s", *pszErrMsg );
+    if( *pszErrMsg ) return false;
+
+	__try{
+		szArgs = Npv2WStr( args[ 2 ] );
+		szResult = Npv2WStr( args[ 3 ] );
+		cbk = new dllcbk( getNPP() );
+		cbk->setArgs( NPVARIANT_TO_OBJECT( args[ 0 ] ), szArgs, *szResult );
+		OBJECT_TO_NPVARIANT( cbk->getNPObject(), *result );
+		r = true;
+	}
+	__finally{
+		delete szArgs;
+        delete szResult;
+    }
+    return r;
 
 }
 
@@ -323,6 +373,11 @@ bool dllfunc::invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCou
         r = toString( result );
     }
     return r;
+}
+
+bool dllfunc::invokeDefault( const NPVariant *args, uint32_t argCount, NPVariant *result)
+{
+	return invoke( L"call", args, argCount, result );
 }
 
 #pragma warning( push )
@@ -520,6 +575,35 @@ bool dllfunc::arg( const NPVariant *args, DWORD argCount, NPVariant *result, LPC
     return true;
 
 
+}
+
+dllcbk::dllcbk (NPP instance ) : NPObj( instance, false )
+{
+	_jsfunc = NULL;
+	_argType = NULL;
+}
+
+dllcbk::~dllcbk ()
+{
+	delete _argType;
+	delete _jsfunc;
+}
+
+bool dllcbk::setArgs( NPObject *object , LPCWSTR szArgs, WCHAR cResult )
+{
+    LOGF;
+	size_t len;
+
+    delete _argType;
+	delete _jsfunc;
+
+    len = lstrlenW( szArgs ) + 1;
+    _argType = new WCHAR[ len ];
+    StringCchCopyW( _argType, len, szArgs );
+    _resultType = cResult;
+	_jsfunc = object;
+
+    return true;
 }
 
 static win32api *_plugin;
