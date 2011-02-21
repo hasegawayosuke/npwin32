@@ -8,13 +8,13 @@ Sample
 	function foo(){
 	    try{
 	        var plugin = document.getElementById( "p" ); // get plugin instance
-	        var GetWindowsDirectory = plugin.import( "kernel32.dll", "GetWindowsDirectoryW", "WN", "N" );
-	        var MessageBox = plugin.import( "user32.dll", "MessageBoxW", "NWWN", "N" );
+			var MessageBox = plugin.import( "user32.dll", "INT MessageBoxW( DWORD, LPCWSTR, LPCWSTR, UINT )" ); 
+			var GetWindowsDirectory = plugin.import( "kernel32.dll", "UINT GetWindowsDirectoryW( LPWSTR, UINT )" );
 	        var buf = new Array( 257 ).join( " " ); // white space * 256
 
 	        if( GetWindowsDirectory && MessageBox ){
-	            GetWindowsDirectory.call( buf, buf.length );
-	            MessageBox.call( 0, "Windows directory is '" + GetWindowsDirectory.arg(0) + "'", "Chrome", 0 );
+	            GetWindowsDirectory( buf, buf.length );
+	            MessageBox( 0, "Windows directory is '" + GetWindowsDirectory.arg(0) + "'", "Chrome", 0 );
 	        }
 	    }
 	    catch( e ){
@@ -31,7 +31,7 @@ the MIT License
 
 Author
 ------
-Yosuke HASEGAWA  [utf-8.jp](http://utf-8.jp/)
+Yosuke HASEGAWA  <[utf-8.jp](http://utf-8.jp/)>
 
 
 
