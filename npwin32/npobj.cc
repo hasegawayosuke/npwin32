@@ -281,7 +281,9 @@ int Npv2Int( NPVariant v )
         if( StrToIntExW( s, STIF_DEFAULT, &n ) ){
             return n;
         }
-    }
+    }else if( NPVARIANT_IS_DOUBLE( v ) ){
+		return static_cast<int>( NPVARIANT_TO_DOUBLE( v ) );
+	}
     return 0;
 }
 

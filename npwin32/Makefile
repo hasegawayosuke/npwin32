@@ -1,7 +1,7 @@
 TARGET=win32api
 DEFFILE=$(TARGET).def
 SOURCE=$(TARGET).cc
-OBJ=npobj.obj win32api.obj
+OBJ=npobj.obj win32api.obj memmgr.obj
 RES=$(TARGET).res
 
 CC=CL

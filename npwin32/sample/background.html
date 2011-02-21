@@ -4,46 +4,56 @@
 function foo()
 {
 	try{
-		var plugin = document.getElementById("p");
-		// import functions
-		var GetDiskFreeSpace = plugin.import( "kernel32.dll", "GetDiskFreeSpaceW", "WPPPP", "B" );
-		var GetWindowsDirectory = plugin.import( "kernel32.dll", "GetWindowsDirectoryW", "WN", "N" );
-		var MessageBox = plugin.import( "user32.dll", "MessageBoxW", "NWWN", "N" );
-		var EnumWindows = plugin.import( "User32.dll", "EnumWindows", "KN", "B" );  
 		var r = "";
+		var plugin = document.getElementById( "p" );
+
+		// import functions
+		var GetDiskFreeSpace = plugin.import( "kernel32.dll", "BOOL GetDiskFreeSpaceW( LPCWSTR, LPDWORD, LPDWORD, LPDWORD, LPDWORD )" );
+		var MessageBox = plugin.import( "user32.dll", "INT MessageBoxW( DWORD, LPCWSTR, LPCWSTR, UINT )" ); 
+		var GetWindowsDirectory = plugin.import( "kernel32.dll", "UINT GetWindowsDirectoryW( LPWSTR, UINT )" );
+
+		// basic usage
+		if( MessageBox ){
+			MessageBox( 0, "hello, world", "chrome", 0 );
+		}
+
+		// example of retrieving integer
+		if( GetDiskFreeSpace ){
+			var SectorsPerCluster = 0 | 1, BytesPerSector = 1, NumberOfFreeClusters = 1, TotalNumberOfClusters = 1;
+			if( GetDiskFreeSpace( "C:\\", ~SectorsPerCluster, BytesPerSector, NumberOfFreeClusters, TotalNumberOfClusters ) ){
+				r = "SectorsPerCluster:" + GetDiskFreeSpace.arg( 1 ) + "\nBytesPerSector:" + GetDiskFreeSpace.arg( 2 ) +
+					"\nNumberOfFreeClusters:" + GetDiskFreeSpace.arg( 3 ) + "\nTotalNumberOfClusters:" + GetDiskFreeSpace.arg( 4 ) + "\n";
+			};
+		}
 
 		// example of retrieving string
 		var buf = new Array( 257 ).join( " " );// space * 256
 		if( GetWindowsDirectory ){
 			GetWindowsDirectory.call( buf, buf.length );
-			r = "Windows directory:'" + GetWindowsDirectory.arg( 0 ) + "'\n";
+			r += "Windows directory:'" + GetWindowsDirectory.arg( 0 ) + "'\n";
 		}
 
-		// example of retrieving integer
-		if( GetDiskFreeSpace ){
-			var SectorsPerCluster = 0, BytesPerSector = 0, NumberOfFreeClusters = 0, TotalNumberOfClusters = 0;
-			if( GetDiskFreeSpace.call( "C:\\", SectorsPerCluster, BytesPerSector, NumberOfFreeClusters, TotalNumberOfClusters ) ){
-				r += "SectorsPerCluster:" + GetDiskFreeSpace.arg( 1 ) + "\nBytesPerSector:" + GetDiskFreeSpace.arg( 2 ) +
-					"\nNumberOfFreeClusters:" + GetDiskFreeSpace.arg( 3 ) + "\nTotalNumberOfClusters:" + GetDiskFreeSpace.arg( 4 );
-			};
-		}
+		/* TODO
 
-		// you can also skip "call" 
-		if( MessageBox ){
-			MessageBox( 0, r, "Chrome", 0 );
-		}
+		// using callback
+		var callback = plugin.callback( 
+			function( hwnd, lparam ){ 
+				alert( "hwnd=" + hwnd + "\nlparam=" + lparam ); 
+				return false; // stop to enumerate
+			}, 
+			"BOOL (DWORD, DWORD)"
+		);
+		var EnumWindows = plugin.import( "user32.dll", "BOOL EnumWindows( CALLBACK, DWORD )" );
+		EnumWindows( callback, 1234 );
 
-		/* TODO:
-		// using callback function
-		var callback = plugin.callback( function( hwnd, lparam ){ alert( "hwnd=" + hwnd ); return false;}, "NN", "B" );
-		if( EnumWindows ){
-			EnumWindows( callback, 0 );
-		}
 		*/
+
+		if( r ) alert( r );
 	}
-	catch(e ){
+	catch( e ){
 		alert( e );
 	}
+
 }
 
 </script>
