@@ -51,7 +51,7 @@ bool NPObj::_hasMethod( NPObject *obj, NPIdentifier methodName )
     NPUTF8 *name = npnfuncs->utf8fromidentifier( methodName );
 
     LOGF;
-    if( !NPObj::_map.Lookup( obj, npobj ) ){
+	if( ( npobj = NPObj::lookup( obj ) ) == NULL ){
         return false;
     }
     w = MultiByteToWideChar( CP_UTF8, 0, name, -1, NULL, 0 );
@@ -76,7 +76,8 @@ bool NPObj::_invoke( NPObject *obj, NPIdentifier methodName,
     NPUTF8 *name;
 
     LOGF;
-    if( !NPObj::_map.Lookup( obj, npobj ) ){
+	if( ( npobj = NPObj::lookup( obj ) ) == NULL ){
+    //if( !NPObj::_map.Lookup( obj, npobj ) ){
         return false;
     }
 	if( methodName != NULL ){
@@ -115,7 +116,8 @@ void NPObj::_deallocate( NPObject *obj )
 
     LOGF;
 
-    if( !NPObj::_map.Lookup( obj, npobj ) ) return;
+	if( ( npobj = NPObj::lookup( obj ) ) == NULL ) return;
+//    if( !NPObj::_map.Lookup( obj, npobj ) ) return;
     delete npobj;
 }
 
@@ -165,6 +167,15 @@ bool NPObj::toString( NPVariant *result )
     RtlCopyMemory( p, s, sizeof( s ) );
     STRINGN_TO_NPVARIANT( p, sizeof( s ), *result );
     return true;
+}
+
+NPObj* NPObj::lookup( NPObject *obj )
+{
+	NPObj* npobj;
+    if( !NPObj::_map.Lookup( obj, npobj ) ){
+        return NULL;
+    }
+	return npobj;
 }
 
 CAtlMap<NPObject*, NPObj*> NPObj::_map;

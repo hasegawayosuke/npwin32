@@ -40,7 +40,7 @@ function foo()
 			MessageBox( 0, r, "Chrome", MB_ICONINFORMATION );
 		}
 
-		/* TODO
+		/* TODO */
 
 		// using callback
 		var callback = plugin.callback( 
@@ -50,10 +50,11 @@ function foo()
 			}, 
 			"BOOL (DWORD, DWORD)"
 		);
+		alert( 1 );
 		var EnumWindows = plugin.import( "user32.dll", "BOOL EnumWindows( CALLBACK, DWORD )" );
 		EnumWindows( callback, 1234 );
 
-		*/
+		//*/
 
 	}
 	catch( e ){

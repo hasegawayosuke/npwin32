@@ -139,6 +139,7 @@ typedef enum {
 	AVT_LPDWORD,
 	AVT_ASTR,
 	AVT_WSTR,
+	AVT_CALLBACK,
 }APIVARTYPE, *LPAPIVARTYPE;
 
 const struct {
@@ -168,6 +169,7 @@ const struct {
 	{ AVT_ASTR,		L"LPCSTR" },
 	{ AVT_WSTR,		L"LPWSTR" },
 	{ AVT_WSTR,		L"LPCWSTR" },
+	{ AVT_CALLBACK, L"CALLBACK" },
 };
 
 class win32api : public NPObj {
@@ -215,6 +217,7 @@ private:
 public:
 	dllcbk( NPP );
 	~dllcbk();
+	DWORD addr() { return reinterpret_cast<DWORD>( _pCode ); };
 	static dllcbk* create( NPP instance, NPObject*, LPCWSTR szDeclaration );
 	bool setArgs( NPObject*, LPCWSTR, WCHAR );
 	DWORD callback( DWORD ESP );
@@ -445,7 +448,10 @@ dllfunc* dllfunc::create( NPP instance, HMODULE hDll, LPCWSTR szDeclaration )
 		SkipSpace( szDeclaration );
 		LOG( L"%d \'%s\'", argCount, szDeclaration );
 		if( *szDeclaration == L')' ) break;
-		if( !GetApiVarType( szDeclaration, avt ) ) return NULL;
+		if( !GetApiVarType( szDeclaration, avt ) ) {
+			LOG( L"invalid arg type:%s", szDeclaration );
+			return NULL;
+		}
 		argCount++;
 		SkipSpace( szDeclaration );
 		SkipToken( szDeclaration );
@@ -654,7 +660,27 @@ bool dllfunc::call( const NPVariant *args, DWORD argCount, NPVariant *result, LP
 				*((LPDWORD)p) = reinterpret_cast<DWORD>(static_cast<LPDWORD>( _argBuffer[ i ] ));
 				p += sizeof( LPDWORD );
 				break;
+			case AVT_CALLBACK:
+				{
+					NPObject* npobject;
+					dllcbk* cbk;
+					if( !NPVARIANT_IS_OBJECT( args[ i ] ) ){
+						LOG( L"invalid arg type." );
+						return false;
+					}
+					npobject = NPVARIANT_TO_OBJECT( args[ i ] );
+					if( ( cbk = static_cast<dllcbk*>( NPObj::lookup( npobject )) ) == NULL ){
+						LOG( L"invalid arg.obj==NULL" );
+						return false;
+					}
+					dw = static_cast<DWORD>( cbk->addr() );
+					_argBuffer[ i ] = dw;
+					*((LPDWORD)p) = dw;
+					p += sizeof( DWORD );
+					break;
+				}
 			default:
+				LOG( L"invalid arg type:%d", _argType[ i ] );
 				*pszErrMsg = W32E_INVALID_ARGUMENT;
 				return false;
             }
@@ -760,6 +786,7 @@ bool dllfunc::arg( const NPVariant *args, DWORD argCount, NPVariant *result, LPC
 
 DWORD WINAPI dllcbk::callbackThunk( dllcbk* _this, DWORD ESP )
 {
+	MessageBoxA( HWND_DESKTOP, "dllcbk::callback", "Chrome", 0 );
 	return _this->callback( ESP );
 }
 
@@ -820,6 +847,35 @@ dllcbk* dllcbk::create( NPP instance, NPObject* jsfunc, LPCWSTR szDeclaration )
 	pcbk->_argCount = argCount;
 	pcbk->_jsfunc = jsfunc;
 	pCode = static_cast<LPBYTE>( my_alloc( 30 ) );
+
+	/*
+	 * push ESP
+	 * push this
+	 * call callbackThunk
+	 * retn 
+	 */
+#ifdef JITDEBUG
+    {
+        CHAR buf[ 1024 ];
+        int n = 0;
+        StringCchPrintfA( buf, _countof( buf ), "vsjitdebugger.exe -p %d", GetCurrentProcessId() );
+        WinExecA( buf, SW_SHOW );
+        while( IsDebuggerPresent() == 0 && n < 100){
+        	Sleep( 200 );
+            n++;
+        }
+    }
+	*pCode++ = 0xcc;		// debug
+#endif
+	*pCode++ = 0x54;		// push ESP
+	*pCode++ = 0x68;		// push this
+	*(reinterpret_cast<LPDWORD>(pCode)) = reinterpret_cast<DWORD>( pcbk );
+	pCode += sizeof( DWORD );
+	*pCode++ = 0xb8;		// mov eax, callbackThunk
+	*(reinterpret_cast<LPDWORD>(pCode)) = reinterpret_cast<DWORD>( callbackThunk );
+	pCode += sizeof( DWORD );
+	*pCode++ = 0xc2;
+	*(reinterpret_cast<LPWORD>(pCode)) = static_cast<WORD>( argCount * 4 );
 
 	i = 0;
 	while( *wszArgStart ){
