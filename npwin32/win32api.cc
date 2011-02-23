@@ -191,6 +191,7 @@ private:
 	DWORD _argCount;
     APIVARTYPE _resultType;
     CAtlArray<MyVariant> _argBuffer;
+	LPBYTE _pCode;
 public:
 	static dllfunc* create( NPP, HMODULE, LPCWSTR );
     dllfunc( NPP );
@@ -209,12 +210,14 @@ private:
 	LPAPIVARTYPE _argType;
 	APIVARTYPE _resultType;
 	DWORD _argCount;
-	BYTE _code[ 32 ];
+	LPBYTE _pCode;
+	static DWORD WINAPI callbackThunk( dllcbk*, DWORD );
 public:
 	dllcbk( NPP );
 	~dllcbk();
 	static dllcbk* create( NPP instance, NPObject*, LPCWSTR szDeclaration );
 	bool setArgs( NPObject*, LPCWSTR, WCHAR );
+	DWORD callback( DWORD ESP );
 };
 
 
@@ -371,6 +374,7 @@ BOOL GetApiVarType( LPCWSTR &s, APIVARTYPE &type )
 	return FALSE;
 }
 
+
 dllfunc::dllfunc( NPP instance ) : NPObj( instance, false )
 {
     LOGF;
@@ -378,6 +382,7 @@ dllfunc::dllfunc( NPP instance ) : NPObj( instance, false )
     _dll = NULL;
     _func = NULL;
     _argType = NULL;
+	_pCode = NULL;
 }
 
 dllfunc::~dllfunc()
@@ -386,9 +391,12 @@ dllfunc::~dllfunc()
     delete _dll;
     delete _func;
 	delete _argType;
+	my_free( _pCode );
 }
 
+#define	is_token( c )		( (L'a'<=c && c<=L'z') || (L'A'<=c && c<=L'Z') || (L'0'<=c && c<=L'9') || (c==L'_') )
 #define	SkipSpace( s )		while( *s==L' ' || *s==L'\t' || *s==L'\r' || *s==L'\n' )s++
+#define	SkipToken( s )		while( is_token( *s ) )s++
 
 dllfunc* dllfunc::create( NPP instance, HMODULE hDll, LPCWSTR szDeclaration )
 {
@@ -440,6 +448,8 @@ dllfunc* dllfunc::create( NPP instance, HMODULE hDll, LPCWSTR szDeclaration )
 		if( !GetApiVarType( szDeclaration, avt ) ) return NULL;
 		argCount++;
 		SkipSpace( szDeclaration );
+		SkipToken( szDeclaration );
+		SkipSpace( szDeclaration );
 		if( *szDeclaration == L',' ){
 			*szDeclaration++;
 		}
@@ -454,6 +464,11 @@ dllfunc* dllfunc::create( NPP instance, HMODULE hDll, LPCWSTR szDeclaration )
 		pfunc->_argBuffer.SetCount( argCount );
 	}
 	pfunc->_argCount = argCount;
+	pfunc->_pCode = reinterpret_cast<LPBYTE>( my_alloc( 5 * argCount + 10 ) );
+	if( pfunc->_pCode == NULL ){
+		delete pfunc;
+		return NULL;
+	}
 
 	i = 0;
 	while( *wszArgStart ){
@@ -464,6 +479,8 @@ dllfunc* dllfunc::create( NPP instance, HMODULE hDll, LPCWSTR szDeclaration )
 		pfunc->_argType[ i++ ] = avt;
 
 		SkipSpace( wszArgStart );
+		SkipToken( szDeclaration );
+		SkipSpace( szDeclaration );
 		if( *wszArgStart == L',' ){
 			*wszArgStart++;
 		}
@@ -472,34 +489,6 @@ dllfunc* dllfunc::create( NPP instance, HMODULE hDll, LPCWSTR szDeclaration )
 	return pfunc;
 
 }
-
-/*
-bool dllfunc::setNames( LPCWSTR szDll, LPCSTR szFunc, LPCWSTR szArgs, WCHAR cResult )
-{
-    LOGF;
-    size_t s1, s2, s3;
-
-    delete _dll;
-    delete _func;
-    delete _argType;
-
-    s1 = lstrlenW( szDll ) + 1;
-    s2 = lstrlenA( szFunc ) + 1;
-    s3 = lstrlenW( szArgs ) + 1;
-    _dll = new WCHAR[ s1 ];
-    _func = new CHAR[ s2 ];
-    _argType = new WCHAR[ s3 ];
-    StringCchCopyW( _dll, s1, szDll );
-    StringCchCopyA( _func, s2, szFunc );
-    StringCchCopyW( _argType, s3, szArgs );
-
-    _argBuffer.SetCount( s3 - 1, s3 - 1 );
-
-    _resultType = cResult;
-
-    return true;
-}
-*/
 
 bool dllfunc::hasMethod( LPCWSTR methodName )
 {
@@ -608,12 +597,9 @@ bool dllfunc::call( const NPVariant *args, DWORD argCount, NPVariant *result, LP
 
     dwSize = n * 5 + 10;
 
-    p0 = p = reinterpret_cast<LPBYTE>( my_alloc( dwSize ) );
-    if( p0 == NULL ){
-        *pszErrMsg = W32E_CANNOT_ALLOCATE_MEM;
-        return false;
-    }
-    __try{
+	p0 = p = _pCode;
+
+    {
         DWORD dw;
         LPSTR sa;
         LPWSTR sw;
@@ -668,6 +654,9 @@ bool dllfunc::call( const NPVariant *args, DWORD argCount, NPVariant *result, LP
 				*((LPDWORD)p) = reinterpret_cast<DWORD>(static_cast<LPDWORD>( _argBuffer[ i ] ));
 				p += sizeof( LPDWORD );
 				break;
+			default:
+				*pszErrMsg = W32E_INVALID_ARGUMENT;
+				return false;
             }
         }
         // mov eax, func
@@ -688,9 +677,9 @@ bool dllfunc::call( const NPVariant *args, DWORD argCount, NPVariant *result, LP
             CHAR buf[ 1024 ];
             int n = 0;
             StringCchPrintfA( buf, _countof( buf ), "vsjitdebugger.exe -p %d", GetCurrentProcessId() );
-            WinExec( buf, SW_SHOW );
-            while( IsDebuggerPresent() == 0 && n < 50){
-                Sleep( 100 );
+            WinExecA( buf, SW_SHOW );
+            while( IsDebuggerPresent() == 0 && n < 100){
+                Sleep( 200 );
                 n++;
             }
         }
@@ -744,9 +733,6 @@ bool dllfunc::call( const NPVariant *args, DWORD argCount, NPVariant *result, LP
 
         Result = true;
     }
-    __finally{
-		my_free( p0 );
-    }
     return Result;
 }
 
@@ -772,17 +758,24 @@ bool dllfunc::arg( const NPVariant *args, DWORD argCount, NPVariant *result, LPC
 
 }
 
+DWORD WINAPI dllcbk::callbackThunk( dllcbk* _this, DWORD ESP )
+{
+	return _this->callback( ESP );
+}
+
 dllcbk::dllcbk (NPP instance ) : NPObj( instance, false )
 {
 	_jsfunc = NULL;
 	_argType = NULL;
 	_argCount = 0;
+	_pCode = NULL;
 }
 
 dllcbk::~dllcbk ()
 {
 	delete _argType;
 	delete _jsfunc;
+	my_free( _pCode );
 }
 
 dllcbk* dllcbk::create( NPP instance, NPObject* jsfunc, LPCWSTR szDeclaration )
@@ -793,14 +786,13 @@ dllcbk* dllcbk::create( NPP instance, NPObject* jsfunc, LPCWSTR szDeclaration )
 	int argCount = 0;
 	LPCWSTR wszArgStart;
 	APIVARTYPE avt;
+	LPBYTE pCode;
 
 	LOGF;
 	SkipSpace( szDeclaration );
-	if( !GetApiVarType( szDeclaration, avtResult ) ){
-		LOG( L"invalid result type" );
-		return NULL;
-	}
+	if( !GetApiVarType( szDeclaration, avtResult ) ) return NULL;
 	SkipSpace( szDeclaration );
+
 	if( *szDeclaration != L'(' ) return NULL;
 	szDeclaration++;
 	SkipSpace( szDeclaration );
@@ -812,6 +804,8 @@ dllcbk* dllcbk::create( NPP instance, NPObject* jsfunc, LPCWSTR szDeclaration )
 		if( *szDeclaration == L')' ) break;
 		if( !GetApiVarType( szDeclaration, avt ) ) return NULL;
 		argCount++;
+		SkipSpace( szDeclaration );
+		SkipToken( szDeclaration );
 		SkipSpace( szDeclaration );
 		if( *szDeclaration == L',' ){
 			*szDeclaration++;
@@ -825,6 +819,7 @@ dllcbk* dllcbk::create( NPP instance, NPObject* jsfunc, LPCWSTR szDeclaration )
 	}
 	pcbk->_argCount = argCount;
 	pcbk->_jsfunc = jsfunc;
+	pCode = static_cast<LPBYTE>( my_alloc( 30 ) );
 
 	i = 0;
 	while( *wszArgStart ){
@@ -835,6 +830,8 @@ dllcbk* dllcbk::create( NPP instance, NPObject* jsfunc, LPCWSTR szDeclaration )
 		pcbk->_argType[ i++ ] = avt;
 
 		SkipSpace( wszArgStart );
+		SkipToken( wszArgStart );
+		SkipSpace( wszArgStart );
 		if( *wszArgStart == L',' ){
 			*wszArgStart++;
 		}
@@ -842,6 +839,13 @@ dllcbk* dllcbk::create( NPP instance, NPObject* jsfunc, LPCWSTR szDeclaration )
 
 	return pcbk;
 }
+
+DWORD dllcbk::callback( DWORD ESP )
+{
+
+	return 0;
+}
+
 
 static win32api *_plugin;
 

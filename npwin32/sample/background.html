@@ -8,19 +8,22 @@ function foo()
 		var plugin = document.getElementById( "p" );
 
 		// import functions
-		var GetDiskFreeSpace = plugin.import( "kernel32.dll", "BOOL GetDiskFreeSpaceW( LPCWSTR, LPDWORD, LPDWORD, LPDWORD, LPDWORD )" );
 		var MessageBox = plugin.import( "user32.dll", "INT MessageBoxW( DWORD, LPCWSTR, LPCWSTR, UINT )" ); 
 		var GetWindowsDirectory = plugin.import( "kernel32.dll", "UINT GetWindowsDirectoryW( LPWSTR, UINT )" );
+		var GetDiskFreeSpace = plugin.import( "kernel32.dll", "BOOL GetDiskFreeSpaceW( LPCWSTR, LPDWORD, LPDWORD, LPDWORD, LPDWORD )" );
+
+		var MB_ICONINFORMATION = 64;
 
 		// basic usage
 		if( MessageBox ){
-			MessageBox( 0, "hello, world", "chrome", 0 );
+			MessageBox( 0, "hello, world", "chrome", MB_ICONINFORMATION );
 		}
+
 
 		// example of retrieving integer
 		if( GetDiskFreeSpace ){
-			var SectorsPerCluster = 0 | 1, BytesPerSector = 1, NumberOfFreeClusters = 1, TotalNumberOfClusters = 1;
-			if( GetDiskFreeSpace( "C:\\", ~SectorsPerCluster, BytesPerSector, NumberOfFreeClusters, TotalNumberOfClusters ) ){
+			var SectorsPerCluster = 0 , BytesPerSector = 1, NumberOfFreeClusters = 1, TotalNumberOfClusters = 1;
+			if( GetDiskFreeSpace( "C:\\", SectorsPerCluster, BytesPerSector, NumberOfFreeClusters, TotalNumberOfClusters ) ){
 				r = "SectorsPerCluster:" + GetDiskFreeSpace.arg( 1 ) + "\nBytesPerSector:" + GetDiskFreeSpace.arg( 2 ) +
 					"\nNumberOfFreeClusters:" + GetDiskFreeSpace.arg( 3 ) + "\nTotalNumberOfClusters:" + GetDiskFreeSpace.arg( 4 ) + "\n";
 			};
@@ -29,8 +32,12 @@ function foo()
 		// example of retrieving string
 		var buf = new Array( 257 ).join( " " );// space * 256
 		if( GetWindowsDirectory ){
-			GetWindowsDirectory.call( buf, buf.length );
+			GetWindowsDirectory( buf, buf.length );
 			r += "Windows directory:'" + GetWindowsDirectory.arg( 0 ) + "'\n";
+		}
+
+		if( MessageBox ){
+			MessageBox( 0, r, "Chrome", MB_ICONINFORMATION );
 		}
 
 		/* TODO
@@ -48,7 +55,6 @@ function foo()
 
 		*/
 
-		if( r ) alert( r );
 	}
 	catch( e ){
 		alert( e );
