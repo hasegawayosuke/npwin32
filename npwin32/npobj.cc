@@ -17,7 +17,7 @@ struct NPClass NPObj::_npo_class = {
     NULL,
     _hasMethod,
     _invoke,
-	_invokeDefault,
+    _invokeDefault,
     NULL,
     NULL,
     NULL,
@@ -32,6 +32,7 @@ NPObj::NPObj( NPP instance, bool retainObject )
         npnfuncs->retainobject( _npobject );
     }
     _npp = instance;
+    LOG( L"mem npobj=%8.8x", (DWORD)this);
     NPObj::_map[ _npobject ] = this;
 }
 
@@ -51,7 +52,7 @@ bool NPObj::_hasMethod( NPObject *obj, NPIdentifier methodName )
     NPUTF8 *name = npnfuncs->utf8fromidentifier( methodName );
 
     LOGF;
-	if( ( npobj = NPObj::lookup( obj ) ) == NULL ){
+    if( ( npobj = NPObj::lookup( obj ) ) == NULL ){
         return false;
     }
     w = MultiByteToWideChar( CP_UTF8, 0, name, -1, NULL, 0 );
@@ -76,28 +77,28 @@ bool NPObj::_invoke( NPObject *obj, NPIdentifier methodName,
     NPUTF8 *name;
 
     LOGF;
-	if( ( npobj = NPObj::lookup( obj ) ) == NULL ){
+    if( ( npobj = NPObj::lookup( obj ) ) == NULL ){
     //if( !NPObj::_map.Lookup( obj, npobj ) ){
         return false;
     }
-	if( methodName != NULL ){
-		name = npnfuncs->utf8fromidentifier( methodName );
-		w = MultiByteToWideChar( CP_UTF8, 0, name, -1, NULL, 0 );
-		s = new WCHAR[ w + 1 ];
-		MultiByteToWideChar( CP_UTF8, 0, name, -1, s, w );
-		LOG( L"methodName=%s", s );
-		r = npobj->invoke( s, args, argCount, result );
-		delete s;
-		npnfuncs->memfree( name );
-	}else{
-		r = npobj->invokeDefault( args, argCount, result );
-	}
+    if( methodName != NULL ){
+        name = npnfuncs->utf8fromidentifier( methodName );
+        w = MultiByteToWideChar( CP_UTF8, 0, name, -1, NULL, 0 );
+        s = new WCHAR[ w + 1 ];
+        MultiByteToWideChar( CP_UTF8, 0, name, -1, s, w );
+        LOG( L"methodName=%s", s );
+        r = npobj->invoke( s, args, argCount, result );
+        delete s;
+        npnfuncs->memfree( name );
+    }else{
+        r = npobj->invokeDefault( args, argCount, result );
+    }
     return r;
 }
 
 bool NPObj::_invokeDefault( NPObject *obj, const NPVariant *args, uint32_t argCount, NPVariant *result) 
 {
-	return _invoke( obj, NULL, args, argCount, result );
+    return _invoke( obj, NULL, args, argCount, result );
 }
 /* 
 NPObject* NPObj::_allocate( NPP npp, NPClass *aClass )
@@ -116,8 +117,9 @@ void NPObj::_deallocate( NPObject *obj )
 
     LOGF;
 
-	if( ( npobj = NPObj::lookup( obj ) ) == NULL ) return;
-//    if( !NPObj::_map.Lookup( obj, npobj ) ) return;
+    if( ( npobj = NPObj::lookup( obj ) ) == NULL ) return;
+    if( !NPObj::_map.Lookup( obj, npobj ) ) return;
+    LOG(L"mem delete %8.8x",(DWORD)npobj);
     delete npobj;
 }
 
@@ -171,11 +173,11 @@ bool NPObj::toString( NPVariant *result )
 
 NPObj* NPObj::lookup( NPObject *obj )
 {
-	NPObj* npobj;
+    NPObj* npobj;
     if( !NPObj::_map.Lookup( obj, npobj ) ){
         return NULL;
     }
-	return npobj;
+    return npobj;
 }
 
 CAtlMap<NPObject*, NPObj*> NPObj::_map;
@@ -293,25 +295,27 @@ int Npv2Int( NPVariant v )
             return n;
         }
     }else if( NPVARIANT_IS_DOUBLE( v ) ){
-		return static_cast<int>( NPVARIANT_TO_DOUBLE( v ) );
-	}
+        return static_cast<int>( NPVARIANT_TO_DOUBLE( v ) );
+    }
     return 0;
 }
 
 BOOL Npv2Bool( NPVariant v )
 {
-	if( NPVARIANT_IS_NULL( v ) ){
-		return FALSE;
-	}else if( NPVARIANT_IS_INT32( v ) ){
-		return NPVARIANT_TO_INT32( v ) ? TRUE : FALSE;
-	}else if( NPVARIANT_IS_STRING( v ) ){
+    if( NPVARIANT_IS_NULL( v ) ){
+        return FALSE;
+    }else if( NPVARIANT_IS_INT32( v ) ){
+        return NPVARIANT_TO_INT32( v ) ? TRUE : FALSE;
+    }else if( NPVARIANT_IS_STRING( v ) ){
         NPString str = NPVARIANT_TO_STRING( v );
-		return str.UTF8Length ? TRUE : FALSE;
-	}else if( NPVARIANT_IS_VOID( v ) ){
-		return FALSE;
-	}else{
-		return TRUE;
-	}
+        return str.UTF8Length ? TRUE : FALSE;
+    }else if( NPVARIANT_IS_VOID( v ) ){
+        return FALSE;
+    }else if( NPVARIANT_IS_BOOLEAN( v ) ){
+        return NPVARIANT_TO_BOOLEAN( v );
+    }else{
+        return TRUE;
+    }
 }
 
 NPUTF8* allocUtf8( LPCSTR s )

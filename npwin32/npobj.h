@@ -23,7 +23,7 @@ public:
     NPObject* getNPObject();
     NPP getNPP();
     static struct NPClass _npo_class;
-	static NPObj* lookup( NPObject * );
+    static NPObj* lookup( NPObject * );
     virtual bool hasMethod( LPCWSTR methodName );
     virtual bool invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCount, NPVariant *result);
     virtual bool invokeDefault( const NPVariant *args, uint32_t argCount, NPVariant *result);
