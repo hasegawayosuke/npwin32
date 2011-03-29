@@ -28,8 +28,8 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,0,1
- PRODUCTVERSION 1,0,0,1
+ FILEVERSION $VERSION
+ PRODUCTVERSION $VERSION
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -49,7 +49,7 @@ BEGIN
             VALUE "FileDescription", "win32api\0"
             VALUE "FileExtents", "spl\0"
             VALUE "FileOpenName", "win32api\0"
-            VALUE "FileVersion", "1, 0, 0, 1\0"
+            VALUE "FileVersion", "$VERSION\0"
             VALUE "InternalName", "win32api\0"
             VALUE "LegalCopyright", "Copyright (C) 2011\0"
             VALUE "LegalTrademarks", "\0"
@@ -57,7 +57,7 @@ BEGIN
             VALUE "OriginalFilename", "win32api.dll\0"
             VALUE "PrivateBuild", "\0"
             VALUE "ProductName", "Win32 DLL dynamic calling libraly\0"
-            VALUE "ProductVersion", "1, 0, 0, 1\0"
+            VALUE "ProductVersion", "$VERSION\0"
             VALUE "SpecialBuild", "\0"
         END
     END

@@ -1,13 +1,14 @@
-<html>
-<head>
-<script>
-function foo()
-{
-    try{
+NPAPI DLL for calling DLL functions inside JavaScript.
+======================================================
+
+Sample
+------
+    <embed type="application/x-win32api-dynamic-call" id="p" hidden="true" />
+    <script type="text/javascript">
+    function foo(){
         var r = "";
         var plugin = document.getElementById( "p" );
 
-		alert( "npwin32 version = " + plugin.version );
         // import functions
         var MessageBox = plugin.import( "user32.dll", "INT MessageBoxW( DWORD, LPCWSTR, LPCWSTR, UINT )" ); 
         var GetWindowsDirectory = plugin.import( "kernel32.dll", "UINT GetWindowsDirectoryW( LPWSTR, UINT )" );
@@ -58,25 +59,19 @@ function foo()
         );
         EnumWindows( callback, 0x1234 );
         alert( r );
-
-		// using structure
-		/*
-		var rect = plugin.struct( "{ LONG left, LONG top, LONG right, LONG bottom }" );
-		var GetWindowRect = plugin.import( "user32.dll", "BOOL GetWindowRect( DWORD, LPSTRUCT )" );
-		GetWindowRect( HWND_DESKTOP, rect );
-		*/
-
     }
-    catch( e ){
-        alert( e );
-    }
+    </script>
+    
 
-}
+License
+-------
+the MIT License
 
-</script>
-</head>
-<body>
-    <embed type="application/x-win32api-dynamic-call" id="p" hidden="true" />
-</body>
-</html>
+
+Author
+------
+Yosuke HASEGAWA  <[utf-8.jp](http://utf-8.jp/)>
+
+
+
 

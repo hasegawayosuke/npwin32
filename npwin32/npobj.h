@@ -17,6 +17,8 @@ private:
     static bool _hasMethod( NPObject*, NPIdentifier );
     static bool _invoke( NPObject*, NPIdentifier, const NPVariant*, uint32_t, NPVariant* ); 
     static bool _invokeDefault( NPObject*, const NPVariant*, uint32_t, NPVariant* ); 
+    static bool _hasProperty( NPObject*, NPIdentifier );
+	static bool _getProperty( NPObject*, NPIdentifier, NPVariant* );
 public:
     NPObj( NPP, bool );
     virtual ~NPObj();
@@ -27,6 +29,8 @@ public:
     virtual bool hasMethod( LPCWSTR methodName );
     virtual bool invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCount, NPVariant *result);
     virtual bool invokeDefault( const NPVariant *args, uint32_t argCount, NPVariant *result);
+    virtual bool hasProperty( LPCWSTR propName );
+	virtual bool getProperty( LPCWSTR propName, NPVariant *result);
     virtual bool toString( NPVariant *result );
 protected:
     NPObject* _npobject;

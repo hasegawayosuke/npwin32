@@ -18,7 +18,8 @@ struct NPClass NPObj::_npo_class = {
     _hasMethod,
     _invoke,
     _invokeDefault,
-    NULL,
+    _hasProperty,
+    _getProperty,
     NULL,
     NULL,
     NULL,
@@ -78,7 +79,6 @@ bool NPObj::_invoke( NPObject *obj, NPIdentifier methodName,
 
     LOGF;
     if( ( npobj = NPObj::lookup( obj ) ) == NULL ){
-    //if( !NPObj::_map.Lookup( obj, npobj ) ){
         return false;
     }
     if( methodName != NULL ){
@@ -100,6 +100,56 @@ bool NPObj::_invokeDefault( NPObject *obj, const NPVariant *args, uint32_t argCo
 {
     return _invoke( obj, NULL, args, argCount, result );
 }
+
+bool NPObj::_hasProperty( NPObject *obj, NPIdentifier propName )
+{
+    bool r;
+    DWORD w;
+    LPWSTR s;
+    NPObj* npobj;
+    NPUTF8 *name = npnfuncs->utf8fromidentifier( propName );
+
+    LOGF;
+    if( ( npobj = NPObj::lookup( obj ) ) == NULL ){
+        return false;
+    }
+    w = MultiByteToWideChar( CP_UTF8, 0, name, -1, NULL, 0 );
+    s = new WCHAR[ w + 1 ];
+    MultiByteToWideChar( CP_UTF8, 0, name, -1, s, w );
+    LOG( L"methodName=%s", s );
+    r = npobj->hasProperty( s );
+
+    delete s;
+    npnfuncs->memfree( name );
+    return r;
+
+}
+
+bool NPObj::_getProperty( NPObject *obj, NPIdentifier propName, NPVariant *result )
+{
+    bool r = false;
+    DWORD w;
+    LPWSTR s;
+    NPObj* npobj;
+    NPUTF8 *name;
+
+    LOGF;
+    if( ( npobj = NPObj::lookup( obj ) ) == NULL ){
+        return false;
+    }
+    if( propName != NULL ){
+        name = npnfuncs->utf8fromidentifier( propName );
+        w = MultiByteToWideChar( CP_UTF8, 0, name, -1, NULL, 0 );
+        s = new WCHAR[ w + 1 ];
+        MultiByteToWideChar( CP_UTF8, 0, name, -1, s, w );
+        LOG( L"propName=%s", s );
+        r = npobj->getProperty( s, result );
+        delete s;
+        npnfuncs->memfree( name );
+    }
+    return r;
+}
+
 /* 
 NPObject* NPObj::_allocate( NPP npp, NPClass *aClass )
 {
@@ -154,6 +204,25 @@ bool NPObj::invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCount
 #pragma warning( push )
 #pragma warning( disable : 4100 )
 bool NPObj::invokeDefault( const NPVariant *args, uint32_t argCount, NPVariant *result) 
+{
+    LOGF;
+    return false;
+}
+#pragma warning( pop )
+
+#pragma warning( push )
+#pragma warning( disable : 4100 )
+bool NPObj::hasProperty( LPCWSTR propName )
+{
+    LOGF;
+    return false;
+}
+
+#pragma warning( pop )
+
+#pragma warning( push )
+#pragma warning( disable : 4100 )
+bool NPObj::getProperty( LPCWSTR propName, NPVariant *result )
 {
     LOGF;
     return false;

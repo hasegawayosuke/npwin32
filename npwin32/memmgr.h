@@ -7,15 +7,8 @@
 
 class MemMgr{
 private:
-    DWORD _dwPageSize;
-    DWORD _dwAllocationGranularity;
+    HANDLE _hHeap;
     MemMgr();
-    typedef struct {
-        DWORD dwFreePage;
-        LPVOID pBase;
-    }MEMREGION, *LPMEMREGION;
-    CSimpleArray<LPMEMREGION> _regions;
-    LPMEMREGION Grow();
 public:
     static MemMgr& Instance( void ){
         static MemMgr inst;

@@ -16,13 +16,14 @@ RCFLAGS=/d "NDEBUG" /d "_VC80_UPGRADE=0x0600" /l 0x409
 $(TARGET).dll : $(DEFFILE) $(OBJ) $(RES)
 	$(LINK) $(LFLAGS) $(OBJ) $(RES)
 
-cc.obj:
-	echo $(CC) $(CFLAGS) /c $<
-	$(CC) $(CFLAGS) /c $<
+$(TARGET).rc : $(TARGET).rc0
+	cscript //nologo makerc.js 
 
-res.rc:
-	echo $(RC) $(RCFLAGS) /Fo$*.res $<
-	$(RC) $(RCFLAGS) /Fo$*.res $<
+$(RES) : $(TARGET).rc
+	$(RC) $(RCFLAGS) /Fo$*.res $**
+	
+cc.obj:
+	$(CC) $(CFLAGS) /c $<
 
 clean : 
 	@if exist $(TARGET).dll del $(TARGET).dll
@@ -31,6 +32,7 @@ clean :
 	@if exist $(TARGET).res del $(TARGET).res
 	@if exist $(TARGET).obj del $(TARGET).obj
 	@if exist $(TARGET).pdb del $(TARGET).pdb
+	@if exist $(TARGET).rc  del $(TARGET).rc
 	@for %%a in ( $(OBJ) ) do @if exist %%a del %%a
 	@for %%a in ( $(OBJ) ) do @if exist %%~na.exp del %%~na.exp
 	@for %%a in ( $(OBJ) ) do @if exist %%~na.lib del %%~na.lib
