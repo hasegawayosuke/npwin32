@@ -7,7 +7,7 @@ function foo()
         var r = "";
         var plugin = document.getElementById( "p" );
 
-		alert( "npwin32 version = " + plugin.version );
+        alert( "npwin32 version = " + plugin.version );
         // import functions
         var MessageBox = plugin.import( "user32.dll", "INT MessageBoxW( DWORD, LPCWSTR, LPCWSTR, UINT )" ); 
         var GetWindowsDirectory = plugin.import( "kernel32.dll", "UINT GetWindowsDirectoryW( LPWSTR, UINT )" );
@@ -59,12 +59,17 @@ function foo()
         EnumWindows( callback, 0x1234 );
         alert( r );
 
-		// using structure
-		/*
-		var rect = plugin.struct( "{ LONG left, LONG top, LONG right, LONG bottom }" );
-		var GetWindowRect = plugin.import( "user32.dll", "BOOL GetWindowRect( DWORD, LPSTRUCT )" );
-		GetWindowRect( HWND_DESKTOP, rect );
-		*/
+        var r = plugin.typedef( "RECT", "{ LONG left, LONG top, LONG right, LONG bottom }" );
+        if( !r ){
+            alert( "fail to call typedef" );
+        }
+        var GetWindowRect = plugin.import( "user32.dll", "BOOL GetWindowRect( DWORD, LPRECT )" );
+        var rect = plugin.struct( "RECT" );
+        GetWindowRect( HWND_DESKTOP, rect );
+        // using structure
+        /*
+        var rect = plugin.struct( "{ LONG left, LONG top, LONG right, LONG bottom }" );
+        */
 
     }
     catch( e ){

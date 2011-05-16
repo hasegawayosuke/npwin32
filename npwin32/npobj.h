@@ -8,6 +8,20 @@
 #include <npfunctions.h>
 #include <npruntime.h>
 
+class NPObj;
+
+class StringKeyEqualHelper {
+public:
+    static bool IsEqualKey( const LPCWSTR k1, const LPCWSTR k2 )
+    {
+        return lstrcmpW( k1, k2 ) == 0 ? true : false;
+    }
+    static bool IsEqualKey( const LPCSTR k1, const LPCSTR k2 )
+    {
+        return lstrcmpA( k1, k2 ) == 0 ? true : false;
+    }
+};
+
 class NPObj : public NPObject {
 private:
     static void *p;
@@ -18,7 +32,7 @@ private:
     static bool _invoke( NPObject*, NPIdentifier, const NPVariant*, uint32_t, NPVariant* ); 
     static bool _invokeDefault( NPObject*, const NPVariant*, uint32_t, NPVariant* ); 
     static bool _hasProperty( NPObject*, NPIdentifier );
-	static bool _getProperty( NPObject*, NPIdentifier, NPVariant* );
+    static bool _getProperty( NPObject*, NPIdentifier, NPVariant* );
 public:
     NPObj( NPP, bool );
     virtual ~NPObj();
@@ -30,7 +44,7 @@ public:
     virtual bool invoke( LPCWSTR methodName, const NPVariant *args, uint32_t argCount, NPVariant *result);
     virtual bool invokeDefault( const NPVariant *args, uint32_t argCount, NPVariant *result);
     virtual bool hasProperty( LPCWSTR propName );
-	virtual bool getProperty( LPCWSTR propName, NPVariant *result);
+    virtual bool getProperty( LPCWSTR propName, NPVariant *result);
     virtual bool toString( NPVariant *result );
 protected:
     NPObject* _npobject;
