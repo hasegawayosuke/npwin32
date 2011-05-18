@@ -364,7 +364,9 @@ int Npv2Int( NPVariant v )
             return n;
         }
     }else if( NPVARIANT_IS_DOUBLE( v ) ){
-        return static_cast<int>( NPVARIANT_TO_DOUBLE( v ) );
+		double d;
+        d = NPVARIANT_TO_DOUBLE( v );
+        return (int)(DWORD)( d + ((d<0) ? -0.5 : 0.5 ));
     }
     return 0;
 }

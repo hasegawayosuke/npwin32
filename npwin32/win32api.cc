@@ -810,7 +810,7 @@ bool dllfunc::method_call( const NPVariant *args, DWORD argCount, NPVariant *res
                     break;
                 }
             default:
-                LOG( L"invalid arg type:%d", _argType[ i ] );
+                LOG( L"invalid arg type:[%i]:%d", i, _argType[ i ] );
                 return false;
             }
         }
