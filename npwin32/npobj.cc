@@ -319,9 +319,10 @@ LPWSTR Npv2WStr( NPVariant v )
         StringCchPrintfW( s, 11, L"%f", NPVARIANT_TO_DOUBLE( v ) );
     }else if( NPVARIANT_IS_STRING( v ) ){
         NPString str = NPVARIANT_TO_STRING( v );
-        w = MultiByteToWideChar( CP_UTF8, 0, str.UTF8Characters, str.UTF8Length + 1, NULL, 0 );
+        w = MultiByteToWideChar( CP_UTF8, 0, str.UTF8Characters, str.UTF8Length, NULL, 0 );
         s = new WCHAR[ w + 1 ];
-        MultiByteToWideChar( CP_UTF8, 0, str.UTF8Characters, str.UTF8Length + 1, s, w );
+        MultiByteToWideChar( CP_UTF8, 0, str.UTF8Characters, str.UTF8Length, s, w );
+		s[ w ] = L'\0';
     }else{
         s = new WCHAR[ 1 ];
         *s = L'\0';

@@ -14,10 +14,11 @@ function foo()
         var GetDiskFreeSpace = plugin.import( "kernel32.dll", "BOOL GetDiskFreeSpaceW( LPCWSTR, LPDWORD, LPDWORD, LPDWORD, LPDWORD )" );
 
         var MB_ICONINFORMATION = 64;
+        var MB_CANCELTRYCONTINUE = 6;
 
         // basic usage
         if( MessageBox ){
-            MessageBox( 0, "hello, world", "chrome", MB_ICONINFORMATION );
+            MessageBox( 0, "hello, world", "chrome", MB_ICONINFORMATION | MB_CANCELTRYCONTINUE );
         }
 
         // example of retrieving integer
@@ -59,6 +60,7 @@ function foo()
         EnumWindows( callback, 0x1234 );
         alert( r );
 
+        /*
         var r = plugin.typedef( "RECT", "{ LONG left, LONG top, LONG right, LONG bottom }" );
         if( !r ){
             alert( "fail to call typedef" );
